@@ -34,7 +34,3 @@ build.dependsOn buildZip
 aws {
     profileName = 'admin'
 }
-
-def lambda_name_production = "GunnisTrainingsBot"
-def lambda_role = "arn:aws:iam::237990170657:role/service-role/gtb"
-def lambda_handler = "com.vsubhuman.telegram.java_example.Main"

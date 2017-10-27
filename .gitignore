@@ -1,5 +1,3 @@
-# Created by .ignore support plugin (hsz.mobi)
-### Gradle template
 .gradle
 /build/
 
@@ -9,10 +7,6 @@ gradle*
 # Gradle:
 .idea
 
-## File-based project format:
 *.iws
 
-## Plugin-specific files:
-
-# IntelliJ
 out/
