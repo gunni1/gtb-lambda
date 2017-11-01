@@ -1,10 +1,15 @@
 import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import command.CommandHandler;
+import command.CreateTrainingCommand;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.AbsSender;
+import persistence.DynamoDBRepository;
+import persistence.TrainingsRepository;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,6 +25,8 @@ import static java.lang.System.getenv;
 public class BotRequestHandler implements RequestStreamHandler {
 
     private final AbsSender responseSender;
+    private final TrainingsRepository trainingsRepository;
+    private final CommandHandler commandHandler;
 
     public BotRequestHandler() {
         String userName = getenv("bot_username");
@@ -28,6 +35,9 @@ public class BotRequestHandler implements RequestStreamHandler {
         Objects.requireNonNull(token);
         WebHookBotFactory webHookBotFactory = new WebHookBotFactory(token, userName);
         this.responseSender = webHookBotFactory.createSender();
+        this.trainingsRepository = new DynamoDBRepository();
+        this.commandHandler = new CommandHandler();
+        commandHandler.addCommand(new CreateTrainingCommand(trainingsRepository));
     }
 
     @Override
@@ -36,14 +46,16 @@ public class BotRequestHandler implements RequestStreamHandler {
         if (maybeUpdate.isPresent() && maybeUpdate.get().hasMessage())
         {
             Message message = maybeUpdate.get().getMessage();
-            String responseText = handleCommand(message.getText().toLowerCase());
+            String responseText = commandHandler.executeAsCommand(message.getText().toLowerCase());
 
-            SendMessage sendMessage = new SendMessage()
-                    .setChatId(message.getChatId())
-                    .setText(responseText);
-            System.out.println("Sending message: " + sendMessage);
-
-            sendResponse(sendMessage);
+            if(!responseText.isEmpty())
+            {
+                SendMessage sendMessage = new SendMessage()
+                        .setChatId(message.getChatId())
+                        .setText(responseText);
+                System.out.println("Sending message: " + sendMessage);
+                sendResponse(sendMessage);
+            }
         }
     }
 
@@ -57,21 +69,12 @@ public class BotRequestHandler implements RequestStreamHandler {
         }
     }
 
-    private String handleCommand(String command) {
-        switch(command){
-            case "/create": return "erzeugt";
-            case "/list": return "alle";
-            default: return "";
-        }
-    }
-
     private Optional<Update> parseUpdate(InputStream inputStream) {
         Update update = null;
         try {
             update = new ObjectMapper().readValue(inputStream, Update.class);
             System.out.println("Update: " + update);
         } catch (Exception e) {
-            //TODO: Logging
             System.err.println("Failed to parse update: " + e);
         }
         return Optional.ofNullable(update);
