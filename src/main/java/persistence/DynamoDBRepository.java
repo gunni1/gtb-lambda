@@ -10,6 +10,7 @@ import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 import static java.lang.System.getenv;
 
@@ -28,8 +29,9 @@ public class DynamoDBRepository implements TrainingsRepository{
 
     @Override
     public String createTraining(String title, String location, ZonedDateTime trainingTime) {
-        PutItemSpec item = new PutItemSpec().withItem(new Item().withString("title", title)
-                .withString("location", location)
+        String id = UUID.randomUUID().toString();
+        PutItemSpec item = new PutItemSpec().withItem(new Item().withString("id", id)
+                .withString("title", title).withString("location", location)
                 .withString("time", trainingTime.format(DATE_FORMAT)));
         PutItemOutcome outcome = dynamoDb.getTable(DYNAMODB_TABLE_NAME).putItem(item);
 
