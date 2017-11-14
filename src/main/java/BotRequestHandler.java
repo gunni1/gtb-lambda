@@ -4,6 +4,7 @@ import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import command.CommandHandler;
 import command.CreateTrainingCommand;
+import domain.UserId;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
@@ -27,6 +28,7 @@ public class BotRequestHandler implements RequestStreamHandler {
     private final AbsSender responseSender;
     private final TrainingsRepository trainingsRepository;
     private final CommandHandler commandHandler;
+    private final MessageHandler messageHandler;
 
     public BotRequestHandler() {
         String userName = getenv("bot_username");
@@ -34,6 +36,7 @@ public class BotRequestHandler implements RequestStreamHandler {
         Objects.requireNonNull(userName);
         Objects.requireNonNull(token);
         WebHookBotFactory webHookBotFactory = new WebHookBotFactory(token, userName);
+        this.messageHandler = new MessageHandler();
         this.responseSender = webHookBotFactory.createSender();
         this.trainingsRepository = new DynamoDBRepository();
         this.commandHandler = new CommandHandler();
@@ -46,7 +49,15 @@ public class BotRequestHandler implements RequestStreamHandler {
         if (maybeUpdate.isPresent() && maybeUpdate.get().hasMessage())
         {
             Message message = maybeUpdate.get().getMessage();
-            String responseText = commandHandler.executeAsCommand(message.getText().toLowerCase());
+            UserId userId = new UserId(maybeUpdate.get().getMessage().getFrom().getId());
+
+            //TODO: Text verarbeiten:   Wenn create, dann erzeugen und Text zurückgaben, was zu tun ist
+            //                          Wenn kein Command, schauen ob eine offene Session existiert,
+            //                              Übungseintrag erzeugen oder entsprechende Fehlerausgabe
+            //                              Wenn end, Sitzung beenden
+            String messageText = message.getText().toLowerCase();
+
+            String responseText = messageHandler.handleMessage(userId, messageText);
 
             if(!responseText.isEmpty())
             {
