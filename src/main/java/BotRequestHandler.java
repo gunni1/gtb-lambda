@@ -1,16 +1,15 @@
 import com.amazonaws.services.lambda.runtime.Context;
-import com.amazonaws.services.lambda.runtime.LambdaLogger;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import command.CommandHandler;
-import command.CreateTrainingCommand;
+import command.BeginTrainingSessionCommand;
+import command.MessageHandler;
 import domain.UserId;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.AbsSender;
-import persistence.DynamoDBRepository;
-import persistence.TrainingsRepository;
+import session.DynDBSessionManager;
+import session.SessionManager;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,9 +25,8 @@ import static java.lang.System.getenv;
 public class BotRequestHandler implements RequestStreamHandler {
 
     private final AbsSender responseSender;
-    private final TrainingsRepository trainingsRepository;
-    private final CommandHandler commandHandler;
     private final MessageHandler messageHandler;
+    private final SessionManager sessionManager;
 
     public BotRequestHandler() {
         String userName = getenv("bot_username");
@@ -36,11 +34,10 @@ public class BotRequestHandler implements RequestStreamHandler {
         Objects.requireNonNull(userName);
         Objects.requireNonNull(token);
         WebHookBotFactory webHookBotFactory = new WebHookBotFactory(token, userName);
-        this.messageHandler = new MessageHandler();
+        this.sessionManager = new DynDBSessionManager();
         this.responseSender = webHookBotFactory.createSender();
-        this.trainingsRepository = new DynamoDBRepository();
-        this.commandHandler = new CommandHandler();
-        commandHandler.addCommand(new CreateTrainingCommand(trainingsRepository));
+        this.messageHandler = new MessageHandler();
+        messageHandler.registerCommand(new BeginTrainingSessionCommand(sessionManager));
     }
 
     @Override
@@ -51,13 +48,7 @@ public class BotRequestHandler implements RequestStreamHandler {
             Message message = maybeUpdate.get().getMessage();
             UserId userId = new UserId(maybeUpdate.get().getMessage().getFrom().getId());
 
-            //TODO: Text verarbeiten:   Wenn create, dann erzeugen und Text zurückgaben, was zu tun ist
-            //                          Wenn kein Command, schauen ob eine offene Session existiert,
-            //                              Übungseintrag erzeugen oder entsprechende Fehlerausgabe
-            //                              Wenn end, Sitzung beenden
-            String messageText = message.getText().toLowerCase();
-
-            String responseText = messageHandler.handleMessage(userId, messageText);
+            String responseText = messageHandler.handleMessage(userId, message.getText().toLowerCase());
 
             if(!responseText.isEmpty())
             {

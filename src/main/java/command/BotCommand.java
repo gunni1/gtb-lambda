@@ -1,5 +1,7 @@
 package command;
 
+import domain.UserId;
+
 import java.util.List;
 
 /**
@@ -13,6 +15,8 @@ public interface BotCommand {
 
     /**
      * Führt die Logik des Commands aus und liefert das Resultat für die Bot-Antwort als String zurück.
+     * @param userId Itenditifkation des Telegram-Nutzers
+     * @param arguments Übergebene Argumente für das Command
      */
-    String executeCommand(List<String> arguments);
+    String executeCommand(UserId userId, List<String> arguments);
 }

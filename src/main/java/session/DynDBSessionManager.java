@@ -4,8 +4,10 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.document.*;
+import com.amazonaws.services.dynamodbv2.document.internal.IteratorSupport;
 import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
+import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
 import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
 import domain.TrainingSession;
 import domain.UserId;
@@ -116,13 +118,19 @@ public class DynDBSessionManager implements SessionManager
                 .withValueMap(new ValueMap().withString(":v_userId", userId.asString()).withBoolean(":v_isActive", true))
                 .withConsistentRead(true);
         ItemCollection<QueryOutcome> items = table.query(querySpec);
+        IteratorSupport<Item, QueryOutcome> iterator = items.iterator();
 
-        //TODO: Query bauen um sessions inaktiv zu setzen
-        for (Iterator it = items.iterator(); it.hasNext(); )
+        AttributeUpdate attributeUpdate = new AttributeUpdate("isActive").put(false);
+        boolean someThingDone = false;
+        while(iterator.hasNext())
         {
+            Item sessionToEnd = iterator.next();
 
+            UpdateItemOutcome outcome = table.updateItem(sessionToEnd.getString("id"), attributeUpdate);
+            System.out.println(outcome.getUpdateItemResult().toString());
+            someThingDone = true;
         }
 
-        return true;
+        return someThingDone;
     }
 }

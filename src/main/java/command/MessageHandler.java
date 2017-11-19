@@ -1,5 +1,6 @@
 package command;
 
+import domain.UserId;
 import persistence.TrainingsRepository;
 
 import java.util.*;
@@ -7,17 +8,18 @@ import java.util.*;
 /**
  * Routet unbearbeitete Bot-Messages zu entsprechenden Commands
  */
-public class CommandHandler {
+public class MessageHandler
+{
 
     private Collection<BotCommand> commands;
 
-    public CommandHandler(){
+    public MessageHandler(){
         commands = new ArrayList<>();
     }
     /**
      * Versucht eine Nachricht eines Bots als Command zu intertretieren.
      */
-    public String executeAsCommand(String botMessage)
+    public String handleMessage(UserId userId, String botMessage)
     {
         String response = "";
         LinkedList<String> tokens = new LinkedList<>(Arrays.asList(botMessage.split(" ")));
@@ -30,14 +32,18 @@ public class CommandHandler {
                     prefix.equalsIgnoreCase(command.getCommandPrefix())).findFirst();
             if(botCommand.isPresent())
             {
-                response = botCommand.get().executeCommand(tokens);
+                response = botCommand.get().executeCommand(userId, tokens);
+            }
+            else
+            {
+                //TODO: Entscheide anahand des DB Zustands (Session) was gemacht wird
             }
         }
         return response;
 
     }
 
-    public void addCommand(BotCommand command){
+    public void registerCommand(BotCommand command){
         commands.add(command);
     }
 }

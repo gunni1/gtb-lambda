@@ -1,5 +1,6 @@
 package command;
 
+import domain.UserId;
 import org.junit.Before;
 import org.junit.Test;
 import persistence.TrainingsRepository;
@@ -10,25 +11,27 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-public class CommandHandlerTest {
-
-    private CommandHandler handler;
+public class MessageHandlerTest
+{
+    private static final UserId USER_ID = new UserId("Hans");
+    private MessageHandler handler;
     private TrainingsRepository mockRepo;
+
 
     @Before
     public void setUp()
     {
-        handler = new CommandHandler();
+        handler = new MessageHandler();
     }
 
     @Test
     public void tokenize()
     {
-        CreateTrainingCommand command = mock(CreateTrainingCommand.class);
+        BeginTrainingSessionCommand command = mock(BeginTrainingSessionCommand.class);
         String prefix = "/pre";
         when(command.getCommandPrefix()).thenReturn(prefix);
-        handler.addCommand(command);
-        handler.executeAsCommand(prefix + " aaa bbb ccc");
-        verify(command).executeCommand(Arrays.asList("aaa", "bbb", "ccc"));
+        handler.registerCommand(command);
+        handler.handleMessage(USER_ID, prefix + " aaa bbb ccc");
+        verify(command).executeCommand(USER_ID, Arrays.asList("aaa", "bbb", "ccc"));
     }
 }
