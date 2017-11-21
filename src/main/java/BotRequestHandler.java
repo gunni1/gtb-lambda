@@ -37,6 +37,7 @@ public class BotRequestHandler implements RequestStreamHandler {
         this.sessionManager = new DynDBSessionManager();
         this.responseSender = webHookBotFactory.createSender();
         this.messageHandler = new MessageHandler();
+
         messageHandler.registerCommand(new BeginTrainingSessionCommand(sessionManager));
     }
 

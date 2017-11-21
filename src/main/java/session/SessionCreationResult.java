@@ -24,4 +24,14 @@ public class SessionCreationResult {
             maybeError = Optional.empty();
         }
     }
+
+    public Optional<TrainingSession> getMaybeSession()
+    {
+        return maybeSession;
+    }
+
+    public Optional<String> getMaybeError()
+    {
+        return maybeError;
+    }
 }

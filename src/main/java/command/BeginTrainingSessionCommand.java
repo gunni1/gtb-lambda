@@ -1,9 +1,12 @@
 package command;
 
+import domain.TrainingSession;
 import domain.UserId;
+import session.SessionCreationResult;
 import session.SessionManager;
 
 import java.util.List;
+import java.util.Optional;
 
 public class BeginTrainingSessionCommand implements BotCommand
 {
@@ -23,7 +26,19 @@ public class BeginTrainingSessionCommand implements BotCommand
     @Override
     public String executeCommand(UserId userId, List<String> arguments)
     {
-        //TODO: Wenn aktive sitzung existiert, fehler ausgeben, sonst neue beginnen
-        return null;
+        System.out.println("user: "+ userId.asString() + " send start with " + arguments.toString());
+        //TODO: Location und Title aus argumenten ermitteln
+
+        SessionCreationResult creationResult = sessionManager.createSession(userId, Optional.empty(), Optional.empty());
+        Optional<TrainingSession> maybeSession = creationResult.getMaybeSession();
+
+        if(maybeSession.isPresent())
+        {
+            return "und los...";
+        }
+        else
+        {
+            return creationResult.getMaybeError().get();
+        }
     }
 }

@@ -9,6 +9,9 @@ import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
 import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
 import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
+import com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder;
+import com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.*;
+import com.amazonaws.services.dynamodbv2.xspec.ScanExpressionSpec;
 import domain.TrainingSession;
 import domain.UserId;
 
@@ -17,6 +20,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.UUID;
+
+import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.B;
+import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.BOOL;
+import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.S;
 
 /**
  * Implementierung des Sessionmanager für DynamoDB
@@ -83,6 +90,7 @@ public class DynDBSessionManager implements SessionManager
 
             PutItemSpec putItemSpec = new PutItemSpec().withItem(itemToSave);
             PutItemOutcome outcome = dynamoDb.getTable(SESSION_DB_TABLE).putItem(putItemSpec);
+            System.out.println("put result: " + outcome.toString());
 
             return new SessionCreationResult(Optional.of(createSession(outcome.getItem())));
         }
@@ -91,12 +99,11 @@ public class DynDBSessionManager implements SessionManager
     private boolean hasActiveSession(UserId userId)
     {
         Table table = dynamoDb.getTable(SESSION_DB_TABLE);
-        QuerySpec querySpec = new QuerySpec().withKeyConditionExpression("userId = :v_userId and isActive = :v_isAvtive")
-                .withValueMap(new ValueMap().withString(":v_userId", userId.asString()).withBoolean(":v_isActive", true))
-                .withConsistentRead(true);
+        ScanExpressionSpec scanExpressionSpec = new ExpressionSpecBuilder().withCondition(
+                S("userId").eq(userId.asString()).and(BOOL("isActive").eq(true))).buildForScan();
 
-        ItemCollection<QueryOutcome> items = table.query(querySpec);
-        return items.getAccumulatedItemCount() > 0;
+        ItemCollection<ScanOutcome> results = table.scan(scanExpressionSpec);
+        return results.getAccumulatedItemCount() > 0;
     }
 
     private TrainingSession createSession(Item item)
@@ -114,11 +121,10 @@ public class DynDBSessionManager implements SessionManager
     public boolean endSession(UserId userId)
     {
         Table table = dynamoDb.getTable(SESSION_DB_TABLE);
-        QuerySpec querySpec = new QuerySpec().withKeyConditionExpression("userId = :v_userId and isActive = :v_isAvtive")
-                .withValueMap(new ValueMap().withString(":v_userId", userId.asString()).withBoolean(":v_isActive", true))
-                .withConsistentRead(true);
-        ItemCollection<QueryOutcome> items = table.query(querySpec);
-        IteratorSupport<Item, QueryOutcome> iterator = items.iterator();
+        ScanExpressionSpec scanExpressionSpec = new ExpressionSpecBuilder().withCondition(
+                S("userId").eq(userId.asString()).and(BOOL("isActive").eq(true))).buildForScan();
+        ItemCollection<ScanOutcome> items = table.scan(scanExpressionSpec);
+        IteratorSupport<Item, ScanOutcome> iterator = items.iterator();
 
         AttributeUpdate attributeUpdate = new AttributeUpdate("isActive").put(false);
         boolean someThingDone = false;
