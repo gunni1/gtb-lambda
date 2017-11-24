@@ -1,5 +1,6 @@
 package session;
 
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
@@ -9,6 +10,7 @@ import com.amazonaws.services.dynamodbv2.document.spec.PutItemSpec;
 import com.amazonaws.services.dynamodbv2.document.spec.QuerySpec;
 import com.amazonaws.services.dynamodbv2.document.spec.UpdateItemSpec;
 import com.amazonaws.services.dynamodbv2.document.utils.ValueMap;
+import com.amazonaws.services.dynamodbv2.model.*;
 import com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder;
 import com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.*;
 import com.amazonaws.services.dynamodbv2.xspec.ScanExpressionSpec;
@@ -17,9 +19,7 @@ import domain.UserId;
 
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.B;
 import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.BOOL;
@@ -30,11 +30,18 @@ import static com.amazonaws.services.dynamodbv2.xspec.ExpressionSpecBuilder.S;
  */
 public class DynDBSessionManager implements SessionManager
 {
+    static final String USER_ID = "userId";
+    static final String IS_ACTIVE = "isActive";
+    static final String DATE_TIME = "dateTime";
+    static final String LOCATION = "location";
+    static final String TITLE = "title";
+    static final String ID = "id";
 
     private DynamoDB dynamoDb;
     private String SESSION_DB_TABLE = "sessions";
     private Regions REGION = Regions.EU_CENTRAL_1;
     private DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ISO_ZONED_DATE_TIME;
+    private AmazonDynamoDBClient client;
 
     public DynDBSessionManager()
     {
@@ -43,24 +50,34 @@ public class DynDBSessionManager implements SessionManager
         this.dynamoDb = new DynamoDB(client);
     }
 
+    public DynDBSessionManager(AWSCredentials credentials)
+    {
+        AmazonDynamoDBClient client = new AmazonDynamoDBClient(credentials);
+        client.setRegion(Region.getRegion(REGION));
+        this.dynamoDb = new DynamoDB(client);
+        this.client = client;
+    }
+
     @Override
     public Optional<TrainingSession> getActiveSession(UserId userId)
     {
-        Table table = dynamoDb.getTable(SESSION_DB_TABLE);
-        QuerySpec querySpec = new QuerySpec().withKeyConditionExpression("userId = :v_userId and isActive = :v_isAvtive")
-                .withValueMap(new ValueMap().withString(":v_userId", userId.asString()).withBoolean(":v_isActive", true))
-                .withConsistentRead(true);
+        ScanRequest scanRequest = new ScanRequest(SESSION_DB_TABLE);
+        Map<String, AttributeValue> valueMap = new HashMap<>();
+        valueMap.put(":state", new AttributeValue().withBOOL(true));
 
-        ItemCollection<QueryOutcome> items = table.query(querySpec);
-        if(items.getAccumulatedItemCount() > 1)
+        scanRequest.withFilterExpression("isActive = :state").withExpressionAttributeValues(valueMap);
+        ScanResult scanResult = client.scan(scanRequest);
+
+        
+        if(scanResult.getCount() > 1)
         {
             //TODO: Später Return-Typ ändern und Fehlermeldung an Bentuzer geben
             throw new IllegalStateException("mehr als eine aktive Session vorhanden");
         }
-        else if(items.getAccumulatedItemCount() == 1)
+        else if(scanResult.getCount() == 1)
         {
-            TrainingSession session = createSession(items.iterator().next());
-            return Optional.of(session);
+            Map<String, AttributeValue> session = scanResult.getItems().get(0);
+            return Optional.of(createSession(session));
         }
         else
         {
@@ -78,65 +95,62 @@ public class DynDBSessionManager implements SessionManager
         else
         {
             String id = UUID.randomUUID().toString();
+            PutItemRequest putItemRequest = new PutItemRequest().withTableName(SESSION_DB_TABLE)
+                    .addItemEntry(ID, new AttributeValue().withS(id))
+                    .addItemEntry(USER_ID, new AttributeValue().withS(USER_ID))
+                    .addItemEntry(DATE_TIME, new AttributeValue().withS(ZonedDateTime.now().format(DATE_FORMAT)))
+                    .addItemEntry(IS_ACTIVE, new AttributeValue().withBOOL(true));
 
-            Item itemToSave = new Item();
-            itemToSave.withString("id", id);
-            itemToSave.withString("userId", userId.asString());
-            itemToSave.withString("dateTime", ZonedDateTime.now().format(DATE_FORMAT));
-            itemToSave.withBoolean("isActive", true);
-
-            maybeTitle.ifPresent(title -> itemToSave.withString("title", title));
-            maybeLocation.ifPresent(location -> itemToSave.withString("location", location));
-
-            PutItemSpec putItemSpec = new PutItemSpec().withItem(itemToSave);
-            PutItemOutcome outcome = dynamoDb.getTable(SESSION_DB_TABLE).putItem(putItemSpec);
-            System.out.println("put result: " + outcome.toString());
-
-            return new SessionCreationResult(Optional.of(createSession(outcome.getItem())));
+            maybeTitle.ifPresent(title -> putItemRequest.addItemEntry(TITLE, new AttributeValue().withS(title)));
+            maybeLocation.ifPresent(location -> putItemRequest.addItemEntry(LOCATION, new AttributeValue().withS(location)));
+            client.putItem(putItemRequest);
+            return new SessionCreationResult(Optional.of(createSession(putItemRequest.getItem())));
         }
-    }
-
-    private boolean hasActiveSession(UserId userId)
-    {
-        Table table = dynamoDb.getTable(SESSION_DB_TABLE);
-        ScanExpressionSpec scanExpressionSpec = new ExpressionSpecBuilder().withCondition(
-                S("userId").eq(userId.asString()).and(BOOL("isActive").eq(true))).buildForScan();
-
-        ItemCollection<ScanOutcome> results = table.scan(scanExpressionSpec);
-        return results.getAccumulatedItemCount() > 0;
-    }
-
-    private TrainingSession createSession(Item item)
-    {
-        String dateTimeString = item.getString("dateTime");
-        TrainingSession.Builder builder = TrainingSession.byBuilder(
-                item.getString("id"), new UserId(item.getString("userId")),
-                ZonedDateTime.parse(dateTimeString, DATE_FORMAT));
-        Optional.ofNullable(item.getString("title")).ifPresent(title -> builder.withTitle(title));
-        Optional.ofNullable(item.getString("location")).ifPresent(location -> builder.withLocation(location));
-        return builder.build();
     }
 
     @Override
     public boolean endSession(UserId userId)
     {
         Table table = dynamoDb.getTable(SESSION_DB_TABLE);
-        ScanExpressionSpec scanExpressionSpec = new ExpressionSpecBuilder().withCondition(
-                S("userId").eq(userId.asString()).and(BOOL("isActive").eq(true))).buildForScan();
-        ItemCollection<ScanOutcome> items = table.scan(scanExpressionSpec);
-        IteratorSupport<Item, ScanOutcome> iterator = items.iterator();
+        ScanRequest scanRequest = new ScanRequest(SESSION_DB_TABLE);
+        Map<String, AttributeValue> valueMap = new HashMap<>();
+        valueMap.put(":state", new AttributeValue().withBOOL(true));
 
-        AttributeUpdate attributeUpdate = new AttributeUpdate("isActive").put(false);
+        scanRequest.withFilterExpression(IS_ACTIVE + " = :state").withExpressionAttributeValues(valueMap);
+        ScanResult scanResult = client.scan(scanRequest);
+
+        AttributeUpdate attributeUpdate = new AttributeUpdate(IS_ACTIVE).put(false);
         boolean someThingDone = false;
-        while(iterator.hasNext())
+        for (Map<String, AttributeValue> items: scanResult.getItems())
         {
-            Item sessionToEnd = iterator.next();
-
-            UpdateItemOutcome outcome = table.updateItem(sessionToEnd.getString("id"), attributeUpdate);
-            System.out.println(outcome.getUpdateItemResult().toString());
+            String id = items.get(ID).getS();
+            table.updateItem(id, attributeUpdate);
             someThingDone = true;
         }
 
         return someThingDone;
+    }
+
+    private boolean hasActiveSession(UserId userId)
+    {
+        ScanRequest scanRequest = new ScanRequest(SESSION_DB_TABLE);
+        Map<String, AttributeValue> valueMap = new HashMap<>();
+        valueMap.put(":state", new AttributeValue().withBOOL(true));
+
+        scanRequest.withFilterExpression(IS_ACTIVE + " = :state").withExpressionAttributeValues(valueMap);
+        ScanResult scanResult = client.scan(scanRequest);
+        return scanResult.getCount() > 0;
+    }
+
+    private TrainingSession createSession(Map<String, AttributeValue>  attributes)
+    {
+        String dateTimeString = attributes.get(DATE_TIME).getS();
+        TrainingSession.Builder builder = TrainingSession.byBuilder(
+                attributes.get(ID).getS(), new UserId(attributes.get(USER_ID).getS()),
+                ZonedDateTime.parse(dateTimeString, DATE_FORMAT));
+        Optional.ofNullable(attributes.get(TITLE)).ifPresent(title -> builder.withTitle(title.getS()));
+        Optional.ofNullable(attributes.get(LOCATION)).ifPresent(location -> builder.withTitle(location.getS()));
+
+        return builder.build();
     }
 }

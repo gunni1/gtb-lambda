@@ -10,3 +10,5 @@ gradle*
 *.iws
 
 out/
+
+Main.java

@@ -1,7 +1,6 @@
 package command;
 
 import domain.UserId;
-import persistence.TrainingsRepository;
 
 import java.util.*;
 
