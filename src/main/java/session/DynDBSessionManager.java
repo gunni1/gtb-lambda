@@ -119,12 +119,14 @@ public class DynDBSessionManager implements SessionManager
         scanRequest.withFilterExpression(IS_ACTIVE + " = :state").withExpressionAttributeValues(valueMap);
         ScanResult scanResult = client.scan(scanRequest);
 
-        AttributeUpdate attributeUpdate = new AttributeUpdate(IS_ACTIVE).put(false);
         boolean someThingDone = false;
         for (Map<String, AttributeValue> items: scanResult.getItems())
         {
             String id = items.get(ID).getS();
-            table.updateItem(id, attributeUpdate);
+            UpdateItemRequest updateRequest = new UpdateItemRequest().withTableName(SESSION_DB_TABLE)
+                    .addKeyEntry(ID, new AttributeValue().withS(id))
+                    .addAttributeUpdatesEntry(IS_ACTIVE, new AttributeValueUpdate().withValue(new AttributeValue().withBOOL(false)));
+            client.updateItem(updateRequest);
             someThingDone = true;
         }
 
