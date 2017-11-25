@@ -111,7 +111,6 @@ public class DynDBSessionManager implements SessionManager
     @Override
     public boolean endSession(UserId userId)
     {
-        Table table = dynamoDb.getTable(SESSION_DB_TABLE);
         ScanRequest scanRequest = new ScanRequest(SESSION_DB_TABLE);
         Map<String, AttributeValue> valueMap = new HashMap<>();
         valueMap.put(":state", new AttributeValue().withBOOL(true));
