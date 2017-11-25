@@ -47,7 +47,7 @@ public class DynDBSessionManager implements SessionManager
     {
         AmazonDynamoDBClient client = new AmazonDynamoDBClient();
         client.setRegion(Region.getRegion(REGION));
-        this.dynamoDb = new DynamoDB(client);
+        this.client = client;
     }
 
     public DynDBSessionManager(AWSCredentials credentials)

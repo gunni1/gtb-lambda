@@ -2,6 +2,7 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestStreamHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import command.BeginTrainingSessionCommand;
+import command.EndTrainingSessionCommand;
 import command.MessageHandler;
 import domain.UserId;
 import org.telegram.telegrambots.api.methods.send.SendMessage;
@@ -39,6 +40,7 @@ public class BotRequestHandler implements RequestStreamHandler {
         this.messageHandler = new MessageHandler();
 
         messageHandler.registerCommand(new BeginTrainingSessionCommand(sessionManager));
+        messageHandler.registerCommand(new EndTrainingSessionCommand(sessionManager));
     }
 
     @Override
