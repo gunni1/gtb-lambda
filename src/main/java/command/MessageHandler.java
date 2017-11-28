@@ -1,6 +1,9 @@
 package command;
 
+import domain.Practice;
+import domain.TrainingSession;
 import domain.UserId;
+import session.SessionManager;
 
 import java.util.*;
 
@@ -9,10 +12,11 @@ import java.util.*;
  */
 public class MessageHandler
 {
-
+    private final SessionManager sessionManager;
     private Collection<BotCommand> commands;
 
-    public MessageHandler(){
+    public MessageHandler(SessionManager sessionManager){
+        this.sessionManager = sessionManager;
         commands = new ArrayList<>();
     }
     /**
@@ -35,7 +39,18 @@ public class MessageHandler
             }
             else
             {
-                //TODO: Entscheide anahand des DB Zustands (Session) was gemacht wird
+                Optional<TrainingSession> activeSession = sessionManager.getActiveSession(userId);
+                if(activeSession.isPresent())
+                {
+                    //TODO: Parsen
+                    Practice practice = new Practice();
+                    activeSession.get().addPractice(practice);
+                    //TODO: DB Update
+                }
+                else
+                {
+                    response = "Keine aktive Sitzung. Mit /start eine neue Sitzung beginnen.";
+                }
             }
         }
         return response;
@@ -43,6 +58,10 @@ public class MessageHandler
     }
 
     public void registerCommand(BotCommand command){
+        if(commands.stream().anyMatch(actual -> actual.getCommandPrefix().equalsIgnoreCase(command.getCommandPrefix())))
+        {
+            throw new IllegalArgumentException("prefix " + command.getCommandPrefix() + " already registered");
+        }
         commands.add(command);
     }
 }

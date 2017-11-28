@@ -58,6 +58,11 @@ public class TrainingSession
         return new Builder(id, userId, dateTime);
     }
 
+    public void addPractice(Practice practice)
+    {
+        practices.add(practice);
+    }
+
     public static class Builder
     {
         private String id;
