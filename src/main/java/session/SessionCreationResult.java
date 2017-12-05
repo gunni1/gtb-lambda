@@ -1,31 +1,38 @@
 package session;
 
-import domain.TrainingSession;
-
 import java.util.Optional;
 
 /**
- * Ergebnis einer Sitzungserzeugung.
+ * Das Ergebnis einer Trainingserzeugung.
  */
-public class SessionCreationResult {
-    private Optional<TrainingSession> maybeSession;
+public class SessionCreationResult
+{
+    private Optional<Session> maybeSession;
 
     private Optional<String> maybeError;
 
-    public SessionCreationResult(Optional<TrainingSession> maybeTrainingsSession)
+    private SessionCreationResult(Optional<Session> maybeSession, Optional<String> maybeError)
     {
-        this.maybeSession = maybeTrainingsSession;
-        if(!maybeTrainingsSession.isPresent())
-        {
-            maybeError = Optional.of("Es konnte keine neue Sitzung gestartet werden.");
-        }
-        else
-        {
-            maybeError = Optional.empty();
-        }
+        this.maybeSession = maybeSession;
+        this.maybeError = maybeError;
     }
 
-    public Optional<TrainingSession> getMaybeSession()
+    public static SessionCreationResult byError(String reason)
+    {
+        return new SessionCreationResult(Optional.empty(), Optional.of(reason));
+    }
+
+    public static SessionCreationResult bySuccess(Session session)
+    {
+        return new SessionCreationResult(Optional.of(session), Optional.empty());
+    }
+
+    public boolean hasResult()
+    {
+        return maybeSession.isPresent();
+    }
+
+    public Optional<Session> getMaybeSession()
     {
         return maybeSession;
     }

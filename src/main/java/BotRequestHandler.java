@@ -9,7 +9,7 @@ import org.telegram.telegrambots.api.methods.send.SendMessage;
 import org.telegram.telegrambots.api.objects.Message;
 import org.telegram.telegrambots.api.objects.Update;
 import org.telegram.telegrambots.bots.AbsSender;
-import session.DynDBSessionManager;
+import session.DynamoDBSessionManager;
 import session.SessionManager;
 
 import java.io.IOException;
@@ -35,7 +35,7 @@ public class BotRequestHandler implements RequestStreamHandler {
         Objects.requireNonNull(userName);
         Objects.requireNonNull(token);
         WebHookBotFactory webHookBotFactory = new WebHookBotFactory(token, userName);
-        this.sessionManager = new DynDBSessionManager();
+        this.sessionManager = new DynamoDBSessionManager();
         this.responseSender = webHookBotFactory.createSender();
         this.messageHandler = new MessageHandler(sessionManager);
 

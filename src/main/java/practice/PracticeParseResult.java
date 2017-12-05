@@ -1,6 +1,6 @@
 package practice;
 
-import domain.Practice;
+import session.Practice;
 
 import java.util.Optional;
 
@@ -18,7 +18,22 @@ public class PracticeParseResult
         this.maybeError = Optional.empty();
         if(!maybePractice.isPresent())
         {
-            maybeError = Optional.of("Bitte das Training der der Form: <Bezeichnung> <")
+            maybeError = Optional.of("Bitte das Training der der Form: <Bezeichnung> <Anzahl> [<Wiederholungen>]");
         }
+    }
+
+    public boolean hasResult()
+    {
+        return maybePractice.isPresent();
+    }
+
+    public Optional<Practice> getMaybePractice()
+    {
+        return maybePractice;
+    }
+
+    public Optional<String> getMaybeError()
+    {
+        return maybeError;
     }
 }

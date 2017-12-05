@@ -1,7 +1,7 @@
 package command;
 
-import domain.TrainingSession;
 import domain.UserId;
+import session.Session;
 import session.SessionCreationResult;
 import session.SessionManager;
 
@@ -30,7 +30,7 @@ public class BeginTrainingSessionCommand implements BotCommand
         //TODO: Location und Title aus argumenten ermitteln
 
         SessionCreationResult creationResult = sessionManager.createSession(userId, Optional.empty(), Optional.empty());
-        Optional<TrainingSession> maybeSession = creationResult.getMaybeSession();
+        Optional<Session> maybeSession = creationResult.getMaybeSession();
 
         if(maybeSession.isPresent())
         {

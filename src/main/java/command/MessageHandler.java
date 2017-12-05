@@ -1,8 +1,9 @@
 package command;
 
-import domain.Practice;
-import domain.TrainingSession;
 import domain.UserId;
+import practice.PracticeParseResult;
+import practice.PracticeParser;
+import session.Session;
 import session.SessionManager;
 
 import java.util.*;
@@ -29,23 +30,29 @@ public class MessageHandler
 
         if(!tokens.isEmpty())
         {
-            String prefix = tokens.removeFirst();
+            String prefix = tokens.getFirst();
             System.out.println("Command-Prefix: " + prefix);
             Optional<BotCommand> botCommand = commands.stream().filter(command ->
                     prefix.equalsIgnoreCase(command.getCommandPrefix())).findFirst();
             if(botCommand.isPresent())
             {
+                tokens.removeFirst();
                 response = botCommand.get().executeCommand(userId, tokens);
             }
             else
             {
-                Optional<TrainingSession> activeSession = sessionManager.getActiveSession(userId);
+                Optional<Session> activeSession = sessionManager.getActiveSession(userId);
                 if(activeSession.isPresent())
                 {
-                    //TODO: Parsen
-                    Practice practice = new Practice();
-                    activeSession.get().addPractice(practice);
-                    //TODO: DB Update
+                    PracticeParseResult parseResult = new PracticeParser().parseToPractice(tokens);
+                    if(parseResult.hasResult())
+                    {
+                        sessionManager.addPractice(activeSession.get().getId(), parseResult.getMaybePractice().get());
+                    }
+                    else
+                    {
+                        response = parseResult.getMaybeError().get();
+                    }
                 }
                 else
                 {
